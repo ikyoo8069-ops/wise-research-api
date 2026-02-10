@@ -101,13 +101,18 @@ async def chat(request: ChatRequest, req: Request):
     }
 
     payload = {
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "claude-sonnet-4-20250514",
         "max_tokens": 2048,
         "messages": request.messages
     }
 
     if request.system:
         payload["system"] = request.system
+
+    # 디버깅: API 키 확인
+    print(f"[DEBUG] API Key exists: {bool(ANTHROPIC_API_KEY)}")
+    print(f"[DEBUG] API Key starts with: {ANTHROPIC_API_KEY[:20] if ANTHROPIC_API_KEY else 'None'}...")
+    print(f"[DEBUG] Payload model: {payload.get('model')}")
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
@@ -116,14 +121,19 @@ async def chat(request: ChatRequest, req: Request):
                 headers=headers,
                 json=payload
             )
+            print(f"[DEBUG] Response status: {response.status_code}")
+            print(f"[DEBUG] Response body: {response.text[:500]}")
             response.raise_for_status()
             data = response.json()
             content = data.get("content", [{}])[0].get("text", "")
             return {"content": content, "remaining": remaining}
         except httpx.HTTPStatusError as e:
-            raise HTTPException(status_code=e.response.status_code, detail=str(e))
+            print(f"[ERROR] HTTPStatusError: {e}")
+            print(f"[ERROR] Response: {e.response.text}")
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            print(f"[ERROR] Exception: {type(e).__name__}: {e}")
+            raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 # ============================================
